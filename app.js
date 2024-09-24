@@ -63,7 +63,7 @@ app.post('/upload', upload.single('pdf'), multerErrorHandler, async (req, res) =
     console.log("req.file.filename :", req.file.filename, "----------");
     console.log(textResult);
     let costos = await addTextToCostos_HL(textResult, req.file.filename);
-    console.log("costos formateados", costos);
+    console.log("costos", costos);
 
     // Eliminar archivo temporal
     fs.unlink(filePath, (err) => {
