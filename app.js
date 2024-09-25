@@ -1,4 +1,3 @@
-// app.js
 const express = require('express');
 const multer = require('multer');
 const path = require('path');
@@ -34,56 +33,60 @@ const upload = multer({
       cb(new Error('Solo se permiten archivos PDF.'));
     }
   },
-  limits: { fileSize: 10 * 1024 * 1024 } // Limitar a 10MB para evitar archivos grandes
+  limits: { fileSize: 10 * 1024 * 1024 } // Limitar a 10MB por archivo
 });
 
 // Middleware de manejo de errores de Multer
 function multerErrorHandler(err, req, res, next) {
   if (err instanceof multer.MulterError) {
-    // Errores específicos de Multer (como límite de tamaño)
     return res.status(400).json({ error: err.message });
   } else if (err) {
-    // Otros errores
     return res.status(500).json({ error: err.message });
   }
   next();
 }
 
-// Ruta para recibir el archivo PDF y convertirlo a texto
-app.post('/upload', upload.single('pdf'), multerErrorHandler, async (req, res) => {
-  if (!req.file) {
-    return res.status(400).send('No se ha subido ningún archivo.');
+// Ruta para recibir múltiples archivos PDF y convertirlos a texto
+app.post('/upload', upload.array('pdfs', 10), multerErrorHandler, async (req, res) => {
+  if (!req.files || req.files.length === 0) {
+    return res.status(400).send('No se han subido archivos.');
   }
 
-  const filePath = path.join(TEMP_DIR, req.file.filename);
+  const results = [];
 
+  // Procesar cada archivo PDF
   try {
-    const textResult = await ConvPDFtoText_HL(filePath);
-    console.log("filePath:", filePath, "----------");
-    console.log("req.file.filename :", req.file.filename, "----------");
-    console.log(textResult);
-    let costos = await addTextToCostos_HL(textResult, req.file.filename);
-    console.log("costos", costos);
+    for (const file of req.files) {
+      const filePath = path.join(TEMP_DIR, file.filename);
+      const textResult = await ConvPDFtoText_HL(filePath);
+      const costos = await addTextToCostos_HL(textResult, file.filename);
 
-    // Eliminar archivo temporal
-    fs.unlink(filePath, (err) => {
-      if (err) console.error('Error al eliminar el archivo temporal', err);
-    });
+      // Agregar el resultado al array
+      results.push({ filename: file.filename, extractedText: textResult, costos });
 
+      // Eliminar archivo temporal
+      fs.unlink(filePath, (err) => {
+        if (err) console.error('Error al eliminar el archivo temporal', err);
+      });
+    }
+
+    // Enviar todos los resultados
     res.json({
-      message: 'Archivo subido y procesado exitosamente.',
-      extractedText: textResult,
-      costos,
+      message: 'Archivos subidos y procesados exitosamente.',
+      results
     });
   } catch (error) {
     console.log(error);
 
-    // Eliminar archivo temporal si ocurre un error
-    fs.unlink(filePath, (err) => {
-      if (err) console.error('Error al eliminar el archivo temporal', err);
+    // Eliminar archivos temporales si ocurre un error
+    req.files.forEach((file) => {
+      const filePath = path.join(TEMP_DIR, file.filename);
+      fs.unlink(filePath, (err) => {
+        if (err) console.error('Error al eliminar el archivo temporal', err);
+      });
     });
 
-    res.status(500).send('Error al procesar el archivo PDF.');
+    res.status(500).send('Error al procesar los archivos PDF.');
   }
 });
 
