@@ -2,10 +2,18 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const cors = require('cors');
 const { ConvPDFtoText_HL, addTextToCostos_HL } = require('./pdfConv');
 
 // Crear una instancia de Express
 const app = express();
+
+// Configurar CORS para permitir solicitudes desde el origen especificado
+app.use(cors({
+  origin: 'http://localhost:3000', // Cambia esto según sea necesario
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // Crear la carpeta "temporal" si no existe
 const TEMP_DIR = 'temporal';
