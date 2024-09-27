@@ -27,8 +27,14 @@ const storage = multer.diskStorage({
     cb(null, TEMP_DIR);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    const filePath = path.join(TEMP_DIR, file.originalname);
+
+    // Si el archivo ya existe, se reemplaza
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    cb(null, file.originalname);
   }
 });
 
@@ -55,7 +61,7 @@ function multerErrorHandler(err, req, res, next) {
 }
 
 // Ruta para recibir múltiples archivos PDF y convertirlos a texto
-app.post('/upload', upload.array('pdfs', 10), multerErrorHandler, async (req, res) => {
+app.post('/upload', upload.array('pdfs', 20), multerErrorHandler, async (req, res) => {
   if (!req.files || req.files.length === 0) {
     return res.status(400).send('No se han subido archivos.');
   }
